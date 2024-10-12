@@ -1,6 +1,6 @@
 project(
   'regex',
-  'c',
+  'cpp',
   default_options : [
     'buildtype=plain',
     'debug=false',
@@ -11,8 +11,8 @@ project(
 )
 
 sources = files(
-  'regex.c',
-  'main.c',
+  'regex.cpp',
+  'main.cpp',
 )
 
 executable('regex', sources)

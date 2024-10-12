@@ -106,7 +106,7 @@ typedef struct entry_t{
 static entry_t *parse_table;
 
 
-char *names_terms[] = {"EOF", "STRING", "SPCL", "SQR", "SQL", "CCL", "CCR", "ORR"};
+char *names_terms[] = {(char *)"EOF", "STRING", "SPCL", "SQR", "SQL", "CCL", "CCR", "ORR"};
 char *names_non_terms[] = {"REGEX", "EXPR", "GRP"};
 
 
@@ -172,7 +172,7 @@ static rule_t rules[9];
 #define SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(value) for(int i = 0; i < n_terms; i += 1){parse_table[statenum*(n_terms + n_non_terms) + i] = (entry_t) {1, 1, value};}
 
 void make_parse_table(){
-    parse_table = calloc(sizeof(entry_t), n_states*(n_terms + n_non_terms));
+    parse_table = (entry_t *)calloc(sizeof(entry_t), n_states*(n_terms + n_non_terms));
 
 
     // State 0
@@ -289,7 +289,7 @@ void make_parse_table(){
 
 
 generic_token_t *tokenize(char *inpbuffer, uint32_t length){
-    generic_token_t *tokens = malloc(sizeof(generic_token_t)*(length + 1));
+    generic_token_t *tokens = (generic_token_t *)malloc(sizeof(generic_token_t)*(length + 1));
     
     int i = 0;
     int t = 0;
@@ -373,7 +373,7 @@ typedef struct token_stack_t{
 
 token_stack_t init_token_stack(){
     token_stack_t ans;
-    ans.base_p = calloc(sizeof(generic_token_t), 16);
+    ans.base_p = (generic_token_t *)calloc(sizeof(generic_token_t), 16);
     ans.alloc_size = 16;
     ans.n_tokens = 0;
     ans.next_p = ans.base_p;
@@ -383,7 +383,7 @@ token_stack_t init_token_stack(){
 token_stack_t push_token_stack(token_stack_t stack, generic_token_t newone){
     if(stack.alloc_size < stack.n_tokens + 1){
         stack.alloc_size = stack.alloc_size*2;
-        stack.base_p = realloc(stack.base_p, sizeof(generic_token_t)*stack.alloc_size);
+        stack.base_p = (generic_token_t *)realloc(stack.base_p, sizeof(generic_token_t)*stack.alloc_size);
     }
     stack.n_tokens += 1;
     *(stack.next_p) = newone;
@@ -424,7 +424,7 @@ typedef struct state_stack_t{
 
 state_stack_t init_state_stack(){
     state_stack_t ans;
-    ans.base_p = calloc(sizeof(uint32_t), 16);
+    ans.base_p = (uint32_t *)calloc(sizeof(uint32_t), 16);
     ans.alloc_size = 16;
     ans.n_elems = 0;
     ans.top_p = ans.base_p;
@@ -434,7 +434,7 @@ state_stack_t init_state_stack(){
 state_stack_t push_state_stack(state_stack_t stack, uint32_t value){
     if(stack.alloc_size < stack.n_elems + 1){
         stack.alloc_size = stack.alloc_size*2;
-        stack.base_p = realloc(stack.base_p, sizeof(uint32_t)*stack.alloc_size);
+        stack.base_p = (uint32_t *)realloc(stack.base_p, sizeof(uint32_t)*stack.alloc_size);
     }
     stack.n_elems += 1;
     *(stack.top_p) = value;
@@ -496,7 +496,7 @@ void  reduce_stacks(token_stack_t *token_stackp, state_stack_t *state_stackp, in
         token_stack = pop_token_stack(token_stack);
         state_stack = pop_state_stack(state_stack);
     }
-    generic_token_t newone = {0};
+    generic_token_t newone = {TERM_NULL, 0, 0, 0};
     newone.type = desired_rule.dest;
     token_stack = push_token_stack(token_stack, newone);
 
@@ -513,7 +513,7 @@ void traverse_graph(generic_token_t *input_stream){
     state_stack_t state_stack = init_state_stack();
 
     state_stack = push_state_stack(state_stack, 0);
-    token_stack = push_token_stack(token_stack, (generic_token_t){0});
+    token_stack = push_token_stack(token_stack, (generic_token_t){TERM_NULL, 0, 0, 0});
 
     int i = 0;
     generic_token_t next_input;

@@ -20,7 +20,7 @@ int main(int argv, char **argc){
 
 
     printf("Running test strings...\n");
-    char *teststr = "regex(3)is(not)?co9ol?-";
+    char *teststr = (char *)"regex(3)is(not)?co9ol?-";
     generic_token_t * tokens = tokenize(teststr, strlen(teststr));
 
     make_parse_table();

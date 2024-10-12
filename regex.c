@@ -329,11 +329,65 @@ token_t *tokenize(char *inpbuffer, uint32_t length){
     return tokens;
 }
 
+generic_token_t *tokenize2(char *inpbuffer, uint32_t length){
+    generic_token_t *tokens = malloc(sizeof(token_t)*(length + 1));
+    
+    int i = 0;
+    int t = 0;
+    while(i < length){
+        
+        tokens[t].start_index = i;
+        tokens[t].stop_index = i;
+        tokens[t].length = 1;
+        tokens[t].type = TERM_NULL;
+        if(inpbuffer[i] == '?' || inpbuffer[i] == '*' || inpbuffer[i] == '+'){
+            tokens[t].type = TERM_SPCL;
+        } else if(inpbuffer[i] == '['){
+            tokens[t].type = TERM_SQL;
+        } else if(inpbuffer[i] == ']'){
+            tokens[t].type = TERM_SQR;
+        } else if(inpbuffer[i] == '('){
+            tokens[t].type = TERM_CCL;
+        } else if(inpbuffer[i] == ')'){
+            tokens[t].type = TERM_CCR;
+        } else if(inpbuffer[i] == '|'){
+            tokens[t].type = TERM_ORR;
+        } else if( ALPHA(inpbuffer[i]) ){
+            tokens[t].type = TERM_STRING;
+            while(ALPHA(inpbuffer[i + 1])){
+                i += 1;
+            }
+            tokens[t].stop_index = i;
+            tokens[t].length = tokens[t].stop_index - tokens[t].start_index + 1;
+        } else{
+            printf("ERROR: invalid character in input stream: %c (%u)\n",inpbuffer[i], (uint8_t)inpbuffer[i]);
+            free(tokens);
+            return NULL;
+        }
+
+        i += 1;
+        t += 1;
+    }
+
+    tokens[t].type = TERM_EOF;
+    tokens[t].length = 0;
+    tokens[t].start_index = 0;
+    tokens[t].stop_index = 0;
+
+    return tokens;
+}
 
 
 
+entry_t get_pt_entry(uint32_t state, enum all_terms term){
+    if(term == TERM_NULL){
+        printf("Bad index to parse table\n");
+        exit(1);
+    }
+    int col = (term == TERM_EOF) ? 0 : term;
+    return parse_table[state*(n_non_terms + n_terms) + col];
 
-
+}
 
 
 
@@ -387,6 +441,18 @@ token_stack_t pop_token_stack(token_stack_t stack){
     stack.next_p = stack.next_p - 1;
     return stack;
 }
+
+generic_token_t top_token(token_stack_t stack){
+    if(stack.n_tokens == 0){
+        printf("Bad top token access!\n");
+        exit(1);
+    }
+    return *(stack.next_p - 1);
+}
+
+
+
+
 
 
 
@@ -533,7 +599,7 @@ generic_token_t token2generic(token_t t){
 }
 
 
-void traverse_graph(token_t *input_stream){
+void traverse_graph(token_t *input_stream, generic_token_t *inp2){
     token_stack_t token_stack = init_token_stack();
     state_stack_t state_stack = init_state_stack();
 
@@ -544,13 +610,20 @@ void traverse_graph(token_t *input_stream){
     generic_token_t next_input;
     token_t next_input_old;
 
-    entry_t action = {0};        
+    entry_t action = {0};
+    entry_t action2 = {0};        
     while(1){
-        next_input = token2generic(input_stream[i]);
+        next_input = inp2[i]; //token2generic(input_stream[i]);
         next_input_old = input_stream[i];
         printf("Input token = %d\n", next_input.type);
         pstacks(state_stack, token_stack);
-        action = parse_table[top_state(state_stack)*(n_terms + n_non_terms) + next_input_old.type];
+        //action2 = parse_table[top_state(state_stack)*(n_terms + n_non_terms) + next_input_old.type];
+
+        action = get_pt_entry(top_state(state_stack), inp2[i].type);
+        //if(action.dest != action2.dest || action.isReduce != action2.isReduce || action.isvalid != action2.isvalid){
+        //    printf("Entries are differnt!\n");
+        //    exit(1);
+        //}
 
 
         if(!action.isvalid){
@@ -559,10 +632,18 @@ void traverse_graph(token_t *input_stream){
         } else if(action.isReduce){
             printf("Reducing by rule %d!\n", action.dest);
             enum non_terms newtopstack = reduce_stacks(&token_stack, &state_stack, action.dest);
-            if(newtopstack == START && next_input_old.type == NULL_TYPE){
+            if(newtopstack == START &&  inp2[i].type == TERM_EOF){//next_input_old.type == NULL_TYPE){
                 break;
             }
-            uint32_t newstate = parse_table[top_state(state_stack)*(n_terms + n_non_terms) + n_terms + newtopstack].dest;
+            uint32_t otherstate = parse_table[top_state(state_stack)*(n_terms + n_non_terms) + n_terms + newtopstack].dest;
+
+
+            uint32_t newstate = get_pt_entry(top_state(state_stack), top_token(token_stack).type).dest;
+            if(otherstate != newstate){
+                printf("BAD STATES\n");
+                exit(1);
+            }
+            
             state_stack = push_state_stack(state_stack, newstate);
             printf("    Going to state %d\n", newstate);
             

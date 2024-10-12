@@ -515,7 +515,7 @@ void pstacks(state_stack_t state_stack, token_stack_t token_stack){
 }
 
 
-enum non_terms reduce_stacks(token_stack_t *token_stackp, state_stack_t *state_stackp, int rule){
+void  reduce_stacks(token_stack_t *token_stackp, state_stack_t *state_stackp, int rule){
 
     token_stack_t token_stack = *token_stackp;
     state_stack_t state_stack = *state_stackp;
@@ -545,61 +545,11 @@ enum non_terms reduce_stacks(token_stack_t *token_stackp, state_stack_t *state_s
     *token_stackp = token_stack;
     *state_stackp = state_stack;
 
-    switch (desired_rule.dest){
-        case TERM_REGEX:
-            return REGEX;
-        case TERM_EXPR:
-            return EXPR;
-        case TERM_GRP:
-            return GRP;
-        case TERM_START:
-            return START;
-        default:
-            printf("BAD rule!\n");
-            exit(1);
-    }
-
 }
 
 
 
-generic_token_t token2generic(token_t t){
-    generic_token_t ans = {0};
-    switch (t.type){
-    case NULL_TYPE:
-        ans.type = TERM_EOF;
-        break;
-    case STRING_T:
-        ans.type = TERM_STRING;
-        break;
-    case SPCL:
-        ans.type = TERM_SPCL;
-        break;
-    case SQL:
-        ans.type = TERM_SQL;
-        break;
-    case SQR:
-        ans.type = TERM_SQR;
-        break;
-    case CCL:
-        ans.type = TERM_CCL;
-        break;
-    case CCR:
-        ans.type = TERM_CCR;
-        break;
-    case ORR:
-        ans.type = TERM_ORR;
-        break;
-    default:
-        printf("BAD CONVERSION!\n");
-        exit(1);
-        break;
-    }
-    return ans;
-}
-
-
-void traverse_graph(token_t *input_stream, generic_token_t *inp2){
+void traverse_graph(generic_token_t *input_stream){
     token_stack_t token_stack = init_token_stack();
     state_stack_t state_stack = init_state_stack();
 
@@ -608,22 +558,16 @@ void traverse_graph(token_t *input_stream, generic_token_t *inp2){
 
     int i = 0;
     generic_token_t next_input;
-    token_t next_input_old;
 
-    entry_t action = {0};
-    entry_t action2 = {0};        
+    entry_t action = {0};      
     while(1){
-        next_input = inp2[i]; //token2generic(input_stream[i]);
-        next_input_old = input_stream[i];
+        next_input = input_stream[i];
+
         printf("Input token = %d\n", next_input.type);
         pstacks(state_stack, token_stack);
-        //action2 = parse_table[top_state(state_stack)*(n_terms + n_non_terms) + next_input_old.type];
 
-        action = get_pt_entry(top_state(state_stack), inp2[i].type);
-        //if(action.dest != action2.dest || action.isReduce != action2.isReduce || action.isvalid != action2.isvalid){
-        //    printf("Entries are differnt!\n");
-        //    exit(1);
-        //}
+        action = get_pt_entry(top_state(state_stack), next_input.type);
+
 
 
         if(!action.isvalid){
@@ -631,28 +575,20 @@ void traverse_graph(token_t *input_stream, generic_token_t *inp2){
             exit(1);
         } else if(action.isReduce){
             printf("Reducing by rule %d!\n", action.dest);
-            enum non_terms newtopstack = reduce_stacks(&token_stack, &state_stack, action.dest);
-            if(newtopstack == START &&  inp2[i].type == TERM_EOF){//next_input_old.type == NULL_TYPE){
+            reduce_stacks(&token_stack, &state_stack, action.dest);
+            // Finish conditon
+            if(top_token(token_stack).type == TERM_START &&  input_stream[i].type == TERM_EOF){
                 break;
             }
-            uint32_t otherstate = parse_table[top_state(state_stack)*(n_terms + n_non_terms) + n_terms + newtopstack].dest;
-
-
             uint32_t newstate = get_pt_entry(top_state(state_stack), top_token(token_stack).type).dest;
-            if(otherstate != newstate){
-                printf("BAD STATES\n");
-                exit(1);
-            }
-            
+
             state_stack = push_state_stack(state_stack, newstate);
             printf("    Going to state %d\n", newstate);
             
         } else{
             printf("Shifting!\n");
             // Shift
-            //printf("top token on stack: %d\n", (token_stack.next_p -1)->type);
             token_stack = push_token_stack(token_stack, next_input);
-            //printf("top token on stack: %d\n", (token_stack.next_p -1)->type);
             state_stack = push_state_stack(state_stack, action.dest);
             printf("    Going to state %d\n", action.dest);
             i += 1;

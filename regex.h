@@ -17,6 +17,9 @@ enum all_terms{TERM_NULL=0, TERM_STRING=1, TERM_SPCL=2, TERM_SQL=3, TERM_SQR=4, 
             
 typedef struct generic_token_t{
     enum all_terms type;
+    int start_index;
+    int stop_index;
+    int length;
 } generic_token_t;
 
 typedef struct rule_t {
@@ -39,6 +42,8 @@ void make_parse_table();
 
 token_t *tokenize(char *inpbuffer, uint32_t length);
 
-void traverse_graph(token_t *input_stream);
+generic_token_t *tokenize2(char *inpbuffer, uint32_t length);
+
+void traverse_graph(generic_token_t *input_stream);
 
 #endif

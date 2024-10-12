@@ -287,50 +287,9 @@ void make_parse_table(){
 #define ALPHA(x) ((x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z') || (x >= '0' && x <= '9') || x == '-')
 
 
-token_t *tokenize(char *inpbuffer, uint32_t length){
-    token_t *tokens = malloc(sizeof(token_t)*(length + 1));
-    
-    int i = 0;
-    int t = 0;
-    while(i < length){
-        
-        tokens[t].start_index = i;
-        tokens[t].stop_index = i;
-        tokens[t].length = 1;
-        tokens[t].type = NULL_TYPE;
-        if(inpbuffer[i] == '?' || inpbuffer[i] == '*' || inpbuffer[i] == '+'){
-            tokens[t].type = SPCL;
-        } else if(inpbuffer[i] == '['){
-            tokens[t].type = SQL;
-        } else if(inpbuffer[i] == ']'){
-            tokens[t].type = SQR;
-        } else if(inpbuffer[i] == '('){
-            tokens[t].type = CCL;
-        } else if(inpbuffer[i] == ')'){
-            tokens[t].type = CCR;
-        } else if(inpbuffer[i] == '|'){
-            tokens[t].type = ORR;
-        } else if( ALPHA(inpbuffer[i]) ){
-            tokens[t].type = STRING_T;
-            while(ALPHA(inpbuffer[i + 1])){
-                i += 1;
-            }
-            tokens[t].stop_index = i;
-            tokens[t].length = tokens[t].stop_index - tokens[t].start_index + 1;
-        } else{
-            printf("ERROR: invalid character in input stream: %c (%u)\n",inpbuffer[i], (uint8_t)inpbuffer[i]);
-            free(tokens);
-            return NULL;
-        }
 
-        i += 1;
-        t += 1;
-    }
-    return tokens;
-}
-
-generic_token_t *tokenize2(char *inpbuffer, uint32_t length){
-    generic_token_t *tokens = malloc(sizeof(token_t)*(length + 1));
+generic_token_t *tokenize(char *inpbuffer, uint32_t length){
+    generic_token_t *tokens = malloc(sizeof(generic_token_t)*(length + 1));
     
     int i = 0;
     int t = 0;

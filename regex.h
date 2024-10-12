@@ -30,19 +30,12 @@ typedef struct rule_t {
 
 
 
-typedef struct token_t{
-    enum terms type;
-    int start_index;
-    int stop_index;
-    int length;
-} token_t;
 
 
 void make_parse_table();
 
-token_t *tokenize(char *inpbuffer, uint32_t length);
+generic_token_t *tokenize(char *inpbuffer, uint32_t length);
 
-generic_token_t *tokenize2(char *inpbuffer, uint32_t length);
 
 void traverse_graph(generic_token_t *input_stream);
 

@@ -8,7 +8,15 @@ typedef struct entry_t{
     uint32_t dest;
 } entry_t;*/
 
+typedef struct entry_t{
+    bool isvalid;
+    bool isReduce;
+    uint32_t dest;
+} entry_t;
+
+
 int parse_table_width = 12;
+int parse_table_height = 16;
 entry_t parse_table_new[] = {
        /*      NULL |        STRING |          SPCL |           SQL |           SQR |           CCL |           CCR |           ORR |         REGEX |          EXPR |           GRP |           EOF | */
        {0, 0,      0}, {1, 0,      7}, {0, 0,      0}, {1, 0,     11}, {0, 0,      0}, {1, 0,     10}, {0, 0,      0}, {0, 0,      0}, {1, 0,      6}, {1, 0,      5}, {1, 0,      8}, {0, 0,      0},

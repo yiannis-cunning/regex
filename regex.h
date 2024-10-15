@@ -98,7 +98,6 @@ public:
     dfa_t(){head = NULL;}
 };
 
-void make_parse_table();
 
 generic_token_t *tokenize(char *inpbuffer, uint32_t length);
 
@@ -112,7 +111,7 @@ bool traverse_dfa(dfa_t *dfa, char *input);
 
 typedef struct regex_t{
     dfa_t *dfa;
-};
+} regex_t;
 
 int make_regex(char *str, regex_t *dest);
 

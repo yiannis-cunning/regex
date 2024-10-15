@@ -85,270 +85,49 @@ states         |
 
 LR0: 
 state_stack; stack; input buffer; action; 
-
-
 */
 
 #include "regex.h"
 #include <stdbool.h>
-
-//#include <bits/stdc++.h>
-#include <iostream>     // std::cout
-#include <algorithm>    // std::sort
-#include <vector>       // std::vector
-
-//#define PRINT_DEBUG
-
-static int n_terms = 8;
-static int n_non_terms = 3;
-static int n_states = 16;
-
-typedef struct entry_t{
-    bool isvalid;
-    bool isReduce;
-    uint32_t dest;
-} entry_t;
-
+#include <iostream>
+#include <algorithm>
+#include <vector>
 #include "parse_table_def.h"
 
-static entry_t *parse_table = NULL;
-
-
-void passert(bool cond, const char *msg){
+//#define PRINT_DEBUG
+static void passert(bool cond, const char *msg){
     if(!cond){printf("%s", msg); exit(1);}
 }
 
-const char *names_terms[] = {(char *)"EOF", "STRING", "SPCL", "SQL", "SQR", "CCL", "CCR", "ORR"};
-const char *names_non_terms[] = {"REGEX", "EXPR", "GRP"};
-
+const char *term_str[] = {  "TERM_NULL", "TERM_STRING", "TERM_SPCL", "TERM_SQL", "TERM_SQR", \
+                            "TERM_CCL", "TERM_CCR", "TERM_ORR", "TERM_REGEX", "TERM_EXPR", \
+                            "TERM_GRP", "TERM_EOF", "TERM_START", "TERM_CHRSET"};
 
 void pparse_table(){
     printf("    \n");
     printf("       ");
-    for(int i = 0; i < n_terms; i += 1){
-        printf(" %7s |", names_terms[i]);
-    }
-    for(int i =0; i <n_non_terms; i += 1){
-        printf(" %7s |", names_non_terms[i]);
+    for(int i = 0; i < parse_table_width; i += 1){
+        printf(" %12s|", term_str[i]);
     }
     printf("\n");
-
-
-    for(int i = 0; i < n_states; i += 1){
+    for(int i = 0; i < parse_table_height; i += 1){
         printf("%6d|", i);
-        for(int j = 0; j < n_terms; j += 1){
-            if(parse_table[i*(n_terms + n_non_terms) + j].isvalid){
-                printf(" %7d |", parse_table[i*(n_terms + n_non_terms) + j].dest);
+        for(int j = 0; j < parse_table_width; j += 1){
+            entry_t entry = parse_table_new[i*(parse_table_width) + j];
+            if(entry.isvalid){
+                printf("  %3d  %4d  |", entry.isReduce, entry.dest);
             } else{
-                printf("         |");
-            }
-        }
-        for(int j =0; j <n_non_terms; j += 1){
-            if(parse_table[i*(n_terms + n_non_terms) + j + n_terms].isvalid){
-                printf(" %7d |", parse_table[i*(n_terms + n_non_terms) + j + n_terms].dest);
-            } else{
-                printf("         |");
+                printf("             |");
             }
         }
         printf("\n");
-        
     }
-
 }
 
-void pparse_table2(){
-    printf("    \n");
-    //printf("       ");
-    for(int i = 1; i < n_terms; i += 1){
-        printf(" %7s |", names_terms[i]);
-    }
-    for(int i =0; i <n_non_terms; i += 1){
-        printf(" %7s |", names_non_terms[i]);
-    }
-    for(int i = 0; i < 1; i += 1){
-        printf(" %7s |", names_terms[i]);
-    }
-    printf("\n");
-
-
-    for(int i = 0; i < n_states; i += 1){
-        //printf("%6d|", i);
-        for(int j = 1; j < n_terms; j += 1){
-            if(parse_table[i*(n_terms + n_non_terms) + j].isvalid){
-                printf(", {1, %d, %6d}", parse_table[i*(n_terms + n_non_terms) + j].isReduce, parse_table[i*(n_terms + n_non_terms) + j].dest);
-            } else{
-                printf(", {0, 0,      0}");
-            }
-        }
-        for(int j =0; j <n_non_terms; j += 1){
-            if(parse_table[i*(n_terms + n_non_terms) + j + n_terms].isvalid){
-                printf(", {1, %d, %6d}", parse_table[i*(n_terms + n_non_terms) + j + n_terms].isReduce, parse_table[i*(n_terms + n_non_terms) + j + n_terms].dest);
-            } else{
-                printf(", {0, 0,      0}");
-            }
-        }
-        for(int j = 0; j < 1; j += 1){
-            if(parse_table[i*(n_terms + n_non_terms) + j].isvalid){
-                printf(", {1, %d, %6d}", parse_table[i*(n_terms + n_non_terms) + j].isReduce, parse_table[i*(n_terms + n_non_terms) + j].dest);
-            } else{
-                printf(", {0, 0,      0}");
-            }
-        }
-        printf("\n");
-        
-    }
-
-}
-
-
-/*
-static rule_t r1 = {TERM_START, {TERM_REGEX, TERM_NULL, TERM_NULL}, 1};
-static rule_t r2 = {TERM_REGEX, {TERM_EXPR, TERM_ORR, TERM_REGEX}, 3};
-static rule_t r3 = {TERM_REGEX, {TERM_EXPR, TERM_NULL, TERM_NULL}, 1};
-
-static rule_t r4 = {TERM_EXPR, {TERM_GRP, TERM_SPCL, TERM_NULL}, 2};
-static rule_t r5 = {TERM_EXPR, {TERM_GRP, TERM_NULL, TERM_NULL}, 1};
-static rule_t r6 = {TERM_EXPR, {TERM_EXPR, TERM_EXPR, TERM_NULL}, 2};
-
-static rule_t r7 = {TERM_GRP, {TERM_CCL, TERM_REGEX, TERM_CCR}, 3};
-static rule_t r8 = {TERM_GRP, {TERM_SQL, TERM_STRING, TERM_SQR}, 3};
-static rule_t r9 = {TERM_GRP, {TERM_STRING, TERM_NULL, TERM_NULL}, 1};
-
-static rule_t r10 = {TERM_REGEX, {TERM_EXPR, TERM_ORR, TERM_NULL}, 2};
-
-static rule_t rules[9];*/
-
-
-
-//static uint32_t parse_table[n_non_terms + n_terms][n_states];
-// Entry is either shift and go to other state, or reduce by rule x
-//      make MSB = shift/reduce and lower bits are either 
-#define SET_PARSE_ENTRY_TERMINAL(terminal, isreduce, value) parse_table[statenum*(n_terms + n_non_terms) + terminal] = (entry_t) {1, isreduce, value};
-#define SET_PARSE_ENTRY_NON_TERMINAL(nonterminal, isreduce, value) parse_table[statenum*(n_terms + n_non_terms) + nonterminal + n_terms] = (entry_t) {1, isreduce, value};
-
-#define SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(value) for(int i = 0; i < n_terms; i += 1){parse_table[statenum*(n_terms + n_non_terms) + i] = (entry_t) {1, 1, value};}
-
-void make_parse_table(){
-    if(parse_table != NULL){return;}
-    parse_table = (entry_t *)calloc(sizeof(entry_t), n_states*(n_terms + n_non_terms));
-
-
-    // State 0
-    int statenum = 0;
-    SET_PARSE_ENTRY_TERMINAL( STRING_T, 0, 7)
-    SET_PARSE_ENTRY_TERMINAL( SQL, 0, 11)
-    SET_PARSE_ENTRY_TERMINAL( CCL, 0, 10)
-
-    SET_PARSE_ENTRY_NON_TERMINAL( REGEX, 0, 6)
-    SET_PARSE_ENTRY_NON_TERMINAL( EXPR, 0, 5)
-    SET_PARSE_ENTRY_NON_TERMINAL( GRP, 0, 8)
-
-    // State 1 does not exist
-
-    // State 2
-    statenum = 2;
-    SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(2);
-
-    // State 3
-    statenum = 3;
-    SET_PARSE_ENTRY_TERMINAL( STRING_T, 0, 7)
-    SET_PARSE_ENTRY_TERMINAL( SQL, 0, 11)
-    SET_PARSE_ENTRY_TERMINAL( CCL, 0, 10)
-
-    SET_PARSE_ENTRY_TERMINAL( CCR, 1, 10)
-    SET_PARSE_ENTRY_TERMINAL( NULL_TYPE, 1, 10)
-
-    SET_PARSE_ENTRY_NON_TERMINAL( REGEX, 0, 2)
-    SET_PARSE_ENTRY_NON_TERMINAL( EXPR, 0, 5)
-    SET_PARSE_ENTRY_NON_TERMINAL( GRP, 0, 8)
-
-    // State 4
-    statenum = 4;
-    SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(6)
-
-    // State 5
-    statenum = 5;
-    SET_PARSE_ENTRY_TERMINAL( STRING_T, 0, 7)
-    SET_PARSE_ENTRY_TERMINAL( SQL, 0, 11)
-    SET_PARSE_ENTRY_TERMINAL( CCL, 0, 10)
-    SET_PARSE_ENTRY_TERMINAL( CCR, 1, 3)
-    SET_PARSE_ENTRY_TERMINAL( ORR, 0, 3)
-    SET_PARSE_ENTRY_TERMINAL( NULL_TYPE, 1, 3)
-    
-
-    SET_PARSE_ENTRY_NON_TERMINAL( EXPR, 0, 4)
-    SET_PARSE_ENTRY_NON_TERMINAL( GRP, 0, 8)
-
-    // State 6
-    statenum = 6;
-    SET_PARSE_ENTRY_TERMINAL( NULL_TYPE, 1, 1)
-
-    // State 7
-    statenum = 7;
-    SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(9)
-
-    // State 8
-    statenum = 8;
-    SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(5)
-    SET_PARSE_ENTRY_TERMINAL( SPCL, 0, 9)
-    
-    // State 9
-    statenum = 9;
-    SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(4)
-
-    // State 10
-    statenum = 10;
-    SET_PARSE_ENTRY_TERMINAL( STRING_T, 0, 7)
-    SET_PARSE_ENTRY_TERMINAL( SQL, 0, 11)
-    SET_PARSE_ENTRY_TERMINAL( CCL, 0, 10)
-
-    SET_PARSE_ENTRY_NON_TERMINAL( REGEX, 0, 14)
-    SET_PARSE_ENTRY_NON_TERMINAL( EXPR, 0, 5)
-    SET_PARSE_ENTRY_NON_TERMINAL( GRP, 0, 8)
-
-    // State 11
-    statenum = 11;
-    SET_PARSE_ENTRY_TERMINAL( STRING_T, 0, 12)
-
-    // State 12
-    statenum = 12;
-    SET_PARSE_ENTRY_TERMINAL( SQR, 0, 13)
-
-    // State 13
-    statenum = 13;
-    SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(8)
-
-    // State 14
-    statenum = 14;
-    SET_PARSE_ENTRY_TERMINAL( CCR, 0, 15)
-
-    // State 15
-    statenum = 15;
-    SET_ALL_PASRSE_ENTRY_TERMINALS_REDUCE(7)
-
-    /*
-    rules[0] = r1;
-    rules[1] = r1;
-    rules[2] = r2;
-    rules[3] = r3;
-    rules[4] = r4;
-    rules[5] = r5;
-    rules[6] = r6;
-    rules[7] = r7;
-    rules[8] = r8;
-    rules[9] = r9;
-    rules[10] = r10;*/
-
-    pparse_table();
-}
 
 
 // Want to make the parse tree by traversing the graph
-
-
 #define ALPHA(x) ((x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z') || (x >= '0' && x <= '9') || x == '-')
-
-
 
 generic_token_t *tokenize(char *inpbuffer, uint32_t length){
     generic_token_t *tokens = (generic_token_t *)malloc(sizeof(generic_token_t)*(length + 1));
@@ -406,24 +185,7 @@ entry_t get_pt_entry(uint32_t state, enum all_terms term){
         exit(1);
     }
     return parse_table_new[state*parse_table_width + term];
-
-    int col = (term == TERM_EOF) ? 0 : term;
-    return parse_table[state*(n_non_terms + n_terms) + col];
-
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -780,14 +542,16 @@ parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
             i += 1;
         }
     }
-    parse_tree_node_t *firstpre = parse_tree_stack.back()->childs.back()->childs.back();
-    //printf("Printing 1st pre-or head: %d-%d, type = %d\n", \
-    firstpre->self_type.start_index, firstpre->self_type.stop_index, firstpre->self_type.type);
+
     #ifdef PRINT_DEBUG
+    parse_tree_node_t *firstpre = parse_tree_stack.back()->childs.back()->childs.back();
+    printf("Printing 1st pre-or head: %d-%d, type = %d\n", firstpre->self_type.start_index, firstpre->self_type.stop_index, firstpre->self_type.type)
     printf("Successfully traversed the graph!\n");
+    pstacks(state_stack, token_stack, parse_tree_stack);
     #endif
-    //pstacks(state_stack, token_stack, parse_tree_stack);
+    // Convert to AST
     parse_tree_node_t *ast = traverse_parse_tree(parse_tree_stack);
+
     #ifdef PRINT_DEBUG
     printf("AST has %ld childs\n", ast->childs.size());
     #endif
@@ -923,16 +687,16 @@ nfa_t *blank_nfa(){
 
 
 void print_node(nfa_node_t *node){
-    printf("Node has %d arrows\n", node->arrows.size());
+    printf("Node has %ld arrows\n", node->arrows.size());
     printf("    isfinish = %d\n", node->isfinish);
-    for(int i=0; i <node->arrows.size(); i += 1){
+    for(unsigned int i=0; i < node->arrows.size(); i += 1){
         printf("    Input <%c>/%d\n", node->input[i], node->input[i]);
     }
 }
 void print_dfa(dfa_node_t *node){
-    printf("Node has %d arrows\n", node->arrows.size());
+    printf("Node has %ld arrows\n", node->arrows.size());
     printf("    isfinish = %d\n", node->isfinish);
-    for(int i=0; i <node->arrows.size(); i += 1){
+    for(unsigned int i=0; i < node->arrows.size(); i += 1){
         printf("    Input <%c>/%d\n", node->input[i], node->input[i]);
     }
 }
@@ -1147,7 +911,7 @@ bool traverse_dfa(dfa_t *dfa, char *input){
         //printf("At node. Input is %c\n", input[i]);
         // Check if there is a outgoing arrow with this input
         int found_route = 0;
-        for(int j = 0; j < head->input.size(); j += 1){
+        for(unsigned int j = 0; j < head->input.size(); j += 1){
             if(input[i] == head->input[j]){
                 //printf("Found route!\n");
                 // Go to next state
@@ -1172,30 +936,35 @@ bool traverse_dfa(dfa_t *dfa, char *input){
 
 
 int make_regex(char *str, regex_t *dest){
+    //pparse_table();
     // 1) Tokenize
     generic_token_t * tokens = tokenize(str, strlen(str));
     if(tokens == NULL){return -1;}
-    make_parse_table();
 
     // 2) Make parse tree and AST
     parse_tree_node_t * ast = traverse_graph(tokens);
-    if(ast == NULL){
-        return -1;
-    }
+    if(ast == NULL){return -1;}
+
     // 3) Make the NFA
+    
     #ifdef PRINT_DEBUG
     printf("Starting NFA creation\n");
     #endif
+
     nfa_t *nfa = make_nfa(ast, str);
     if(nfa == NULL){return -1;}
+    
     #ifdef PRINT_DEBUG
     printf("Starting DFA conversion\n");
     #endif
+
     dfa_t *dfa = nfa_to_dfa_conv(nfa);
     if(dfa == NULL){return -1;}
+
     regex_t newone = {0};
     newone.dfa = dfa;
     *dest = newone;
+    
     return 0;
 }
 

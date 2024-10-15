@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <vector>
+#include <string.h>
 
 enum terms{NULL_TYPE=0, STRING_T=1, SPCL=2, SQL=3, SQR=4, CCL=5, CCR=6, ORR=7};
 enum non_terms{REGEX=0, EXPR=1, GRP=2, START=3};
@@ -13,7 +14,7 @@ enum non_terms{REGEX=0, EXPR=1, GRP=2, START=3};
 
 enum all_terms{TERM_NULL=0, TERM_STRING=1, TERM_SPCL=2, TERM_SQL=3, TERM_SQR=4, \
                 TERM_CCL=5, TERM_CCR=6, TERM_ORR=7, TERM_REGEX=8, TERM_EXPR=9, \
-                TERM_GRP=10, TERM_START=11, TERM_EOF=12};
+                TERM_GRP=10, TERM_START=11, TERM_EOF=12, TERM_CHRSET=13};
             
 typedef struct generic_token_t{
     enum all_terms type;
@@ -50,12 +51,71 @@ public:
     }
 };
 
+class parse_tree_node_t{
+public:
+    generic_token_t self_type;
+    parse_tree_node_t * parent;
+    std::vector<parse_tree_node_t *> childs;
 
+    parse_tree_node_t(generic_token_t type){self_type = type; parent=NULL;}
+    virtual ~parse_tree_node_t(){
+        for(unsigned i=0;i<childs.size(); i += 1){
+            delete childs[i];
+        }
+    }
+};
+
+class nfa_node_t{
+public:
+    bool isfinish;
+    std::vector<nfa_node_t *> arrows;
+    std::vector<char> input;    // 0 is epsilon
+
+    nfa_node_t(){isfinish = false;};
+};
+
+class nfa_t{
+public:
+    nfa_node_t *head;
+    std::vector<nfa_node_t *> ends;
+    nfa_t(){head = NULL;};
+};
+
+
+class dfa_node_t{
+public:
+    bool isfinish;
+    std::vector<dfa_node_t *> arrows;
+    std::vector<char> input;    // 0 is epsilon
+
+    dfa_node_t(){isfinish = false;};
+};
+
+class dfa_t{
+public:
+    dfa_node_t *head;
+    std::vector<dfa_node_t *> ends;
+    dfa_t(){head = NULL;}
+};
 
 void make_parse_table();
 
 generic_token_t *tokenize(char *inpbuffer, uint32_t length);
 
-void traverse_graph(generic_token_t *input_stream);
+parse_tree_node_t * traverse_graph(generic_token_t *input_stream);
+
+nfa_t *make_nfa(parse_tree_node_t *ast, char *src);
+
+dfa_t *nfa_to_dfa_conv(nfa_t *nfa);
+
+bool traverse_dfa(dfa_t *dfa, char *input);
+
+typedef struct regex_t{
+    dfa_t *dfa;
+};
+
+int make_regex(char *str, regex_t *dest);
+
+bool match(regex_t regex, char *str);
 
 #endif

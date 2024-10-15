@@ -3,6 +3,7 @@
 
 class tester_t{
     int testnum;
+    int passednum;
     regex_t curr_regex;
 public:
 
@@ -12,16 +13,24 @@ public:
         if(ret_val == -1){printf("Bad regex!\n"); exit(1);}
     }
     void test(char *instr, bool expect_match){
-    if(match(curr_regex, (char *) instr) != expect_match){
-        printf("Test %d FAILED on input %s\n", testnum, instr);
-    } else{
-        printf("Test %d passed\n", testnum);
-
+        if(match(curr_regex, (char *) instr) != expect_match){
+            printf("Test %d FAILED on input %s\n", testnum, instr);
+        } else{
+            printf("Test %d passed\n", testnum);
+            passednum += 1;
+        }
+        testnum += 1;
     }
-    testnum += 1;
+    void done(){
+        printf("Done all tests.... %d/%d passed\n", testnum - 1, passednum);
     }
 
-    tester_t(){testnum = 1; curr_regex = {0};}
+    tester_t(){
+        printf("Starting all tests...\n"); 
+        testnum = 1; 
+        curr_regex = {0};
+        passednum = 0;
+    }
     ~tester_t(){};
 };
 
@@ -32,7 +41,7 @@ int main(int argv, char **argc){
     char *str_input;
     bool matched;
 
-    printf("Starting all tests...\n");
+    
 
     tester_t tester = tester_t();
 
@@ -60,7 +69,16 @@ int main(int argv, char **argc){
     tester.test("stopstopnightnight", false);
     tester.test("a", true);
 
+    str_regex = "spite[a-z]+on";
+    tester.update_regex(str_regex);
+    tester.test("spiteaaon", true);
+    tester.test("spitebbon", true);
+    tester.test("spitezzzon", true);
+    tester.test("spiteon", false);
+    tester.test("spiteZon", false);
 
-    printf("Done all tests....\n");
+
+
+    tester.done();
 
 }

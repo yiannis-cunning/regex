@@ -14,7 +14,7 @@ enum non_terms{REGEX=0, EXPR=1, GRP=2, START=3};
 
 enum all_terms{TERM_NULL=0, TERM_STRING=1, TERM_SPCL=2, TERM_SQL=3, TERM_SQR=4, \
                 TERM_CCL=5, TERM_CCR=6, TERM_ORR=7, TERM_REGEX=8, TERM_EXPR=9, \
-                TERM_GRP=10, TERM_START=11, TERM_EOF=12, TERM_CHRSET=13};
+                TERM_GRP=10, TERM_EOF=11, TERM_START=12, TERM_CHRSET=13};
             
 typedef struct generic_token_t{
     enum all_terms type;

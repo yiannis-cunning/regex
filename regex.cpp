@@ -194,6 +194,11 @@ entry_t get_pt_entry(uint32_t state, enum all_terms term){
 
 
 
+
+
+
+
+
 void pstacks(std::vector<uint32_t> state_stack, std::vector<parse_tree_node_t *> parse_tree_stack){
     
     if(state_stack.size() != parse_tree_stack.size()){
@@ -313,19 +318,14 @@ void push_regexes(parse_tree_node_t *ast_S, parse_tree_node_t *parse_tree_Regex)
     
 
 
-parse_tree_node_t * traverse_parse_tree(std::vector<parse_tree_node_t *> parse_tree_stack){
-    // Expected = 2
-    #ifdef PRINT_DEBUG
-    printf("Size of parse tree stack: %ld\n", parse_tree_stack.size());
-    #endif
-    parse_tree_node_t *start_node = parse_tree_stack.back();
+parse_tree_node_t * make_ast(parse_tree_node_t *parse_tree){
 
-    parse_tree_node_t *ast_head = new parse_tree_node_t(start_node->self_type);
+    parse_tree_node_t *ast_head = new parse_tree_node_t(parse_tree->self_type);
     ast_head->self_type.type = TERM_START;
     
-    passert( (start_node->childs.size() == 1 ) && (start_node->childs.back()->self_type.type == TERM_REGEX), "Bad parse tree given to extract AST\n");
-    push_regexes(ast_head, start_node->childs.back());
-
+    passert( (parse_tree->childs.size() == 1 ) && (parse_tree->childs.back()->self_type.type == TERM_REGEX), "Bad parse tree given to extract AST\n");
+    push_regexes(ast_head, parse_tree->childs.back());
+    delete parse_tree;
 
     return ast_head;
 };
@@ -381,32 +381,31 @@ void  reduce_stacks(std::vector<uint32_t> *state_stack, int rule, std::vector<pa
 
 
 // Should consider chaning vectors to lists
-parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
+parse_tree_node_t * make_parse_tree(generic_token_t *input_stream){
 
     std::vector<uint32_t> state_stack;
     std::vector<parse_tree_node_t *> parse_tree_stack;
 
-    parse_tree_node_t *newelem = new parse_tree_node_t((generic_token_t){TERM_NULL, 0, 0, 0});
-    parse_tree_stack.push_back(newelem);
-
+    parse_tree_stack.push_back(new parse_tree_node_t((generic_token_t){TERM_NULL, 0, 0, 0}));
     state_stack.push_back(0);
 
     int i = 0;
     generic_token_t next_input;
+    entry_t action = {0};    
 
-    entry_t action = {0};      
     while(1){
         next_input = input_stream[i];
+        action = get_pt_entry(state_stack.back(), next_input.type);
 
         #ifdef PRINT_DEBUG
         printf("Input token = %d (str : %d-%d)\n", next_input.type, next_input.start_index, next_input.stop_index);
         pstacks(state_stack, parse_tree_stack);
         #endif
-        action = get_pt_entry(state_stack.back(), next_input.type);
 
 
         if(!action.isvalid){
-            printf("Could not traverse the graph for this regex!\n");
+            //printf("Could not traverse the graph for this regex!\n");
+            for(uint q = 0; q < parse_tree_stack.size(); q += 1){delete parse_tree_stack[q];} // deconstructor ill delete children also... 
             return NULL;
         } else if(action.isReduce){
 
@@ -420,14 +419,17 @@ parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
                 //printf("Done! token_stack top = %d, == %d", top_token(token_stack).type, TERM_START);
                 break;
             }
-            uint32_t newstate = get_pt_entry(state_stack.back(), parse_tree_stack.back()->self_type.type).dest;
+            action = get_pt_entry(state_stack.back(), parse_tree_stack.back()->self_type.type);
+
             if(!action.isvalid){
                 #ifdef PRINT_DEBUG
                 printf("No where to jump to with this reduce!\n");
                 #endif
+                for(uint q = 0; q < parse_tree_stack.size(); q += 1){delete parse_tree_stack[q];} // deconstructor ill delete children also... 
                 return NULL;
             }
-            state_stack.push_back(newstate);
+
+            state_stack.push_back(action.dest);
 
             #ifdef PRINT_DEBUG
             printf("    Going to state %d\n", newstate);
@@ -457,16 +459,17 @@ parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
     printf("Successfully traversed the graph!\n");
     //pstacks(state_stack, parse_tree_stack);
     #endif
-    // Convert to AST
-    parse_tree_node_t *ast = traverse_parse_tree(parse_tree_stack);
+
+    delete parse_tree_stack[0];
+
 
     #ifdef PRINT_DEBUG
     printf("AST has %ld childs\n", ast->childs.size());
     #endif
 
-    return ast;
+    return parse_tree_stack[1];
 }
-
+ 
 
 
 
@@ -865,29 +868,23 @@ int make_regex(char *str, regex_t *dest){
     generic_token_t * tokens = tokenize(str, strlen(str));
     if(tokens == NULL){return -1;}
 
-    // 2) Make parse tree and AST
-    parse_tree_node_t * ast = traverse_graph(tokens);
+    // 2) Make parse tree
+    parse_tree_node_t * parse_tree = make_parse_tree(tokens);
+    if(parse_tree == NULL){return -1;}
+
+    // 3) Convert to AST
+    parse_tree_node_t *ast = make_ast(parse_tree);
     if(ast == NULL){return -1;}
 
-    // 3) Make the NFA
-    
-    #ifdef PRINT_DEBUG
-    printf("Starting NFA creation\n");
-    #endif
-
+    // 4) Make the NFA
     nfa_t *nfa = make_nfa(ast, str);
     if(nfa == NULL){return -1;}
-    
-    #ifdef PRINT_DEBUG
-    printf("Starting DFA conversion\n");
-    #endif
 
+    // 5) Make the DFA
     dfa_t *dfa = nfa_to_dfa_conv(nfa);
     if(dfa == NULL){return -1;}
 
-    regex_t newone = {0};
-    newone.dfa = dfa;
-    *dest = newone;
+    *dest = (regex_t) {dfa};
     
     return 0;
 }
@@ -895,6 +892,8 @@ int make_regex(char *str, regex_t *dest){
 bool match(regex_t regex, char *matchstr){
     return traverse_dfa(regex.dfa, matchstr);
 }
+
+
 /*
 regex_t::regex_t(char *str){
     generic_token_t * tokens = tokenize(str, strlen(str));

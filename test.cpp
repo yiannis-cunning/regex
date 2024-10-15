@@ -10,8 +10,20 @@ public:
     void update_regex(const char *regex_str){
         int ret_val = make_regex( (char *) regex_str, &curr_regex);
         printf("Testing new regex: %s...\n", regex_str);
-        if(ret_val == -1){printf("Bad regex!\n"); exit(1);}
+        if(ret_val == -1){printf("Bad regex when not expected!\n"); exit(1);}
     }
+    void check_bad_regex(const char *regex_str){
+        regex_t temp;
+        int ret_val = make_regex( (char *) regex_str, &temp);
+        if(ret_val != -1){
+            printf("Test %d FAILED - regex \"%s\" was expected to fail\n", testnum, regex_str);
+        } else{
+            printf("Test %d passed\n", testnum);
+            passednum += 1;
+        }
+        testnum += 1;
+    }
+
     void test(const char *instr, bool expect_match){
         if(match(curr_regex, (char *) instr) != expect_match){
             printf("Test %d FAILED on input %s\n", testnum, instr);
@@ -88,7 +100,17 @@ int main(int argv, char **argc){
     tester.test("splat", true);
     tester.test("", true);
     tester.test("uhhh", false);
-    
+
+    tester.check_bad_regex("(|)");
+    tester.check_bad_regex("(");
+    tester.check_bad_regex("(**)");
+    tester.check_bad_regex("(*+)");
+    tester.check_bad_regex("swiing bat **");
+    tester.check_bad_regex("swiing(whwh*)slinky+[sdfds*]");
+
+
+
+
     tester.done();
 
 }

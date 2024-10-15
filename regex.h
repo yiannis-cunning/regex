@@ -76,16 +76,6 @@ public:
 
 
 
-//generic_token_t *tokenize(char *inpbuffer, uint32_t length);
-
-parse_tree_node_t * traverse_graph(generic_token_t *input_stream);
-
-nfa_t *make_nfa(parse_tree_node_t *ast, char *src);
-
-dfa_t *nfa_to_dfa_conv(nfa_t *nfa);
-
-bool traverse_dfa(dfa_t *dfa, char *input);
-
 typedef struct regex_t{
     dfa_t *dfa;
 } regex_t;

@@ -168,7 +168,7 @@ static rule_t r7 = {TERM_GRP, {TERM_CCL, TERM_REGEX, TERM_CCR}, 3};
 static rule_t r8 = {TERM_GRP, {TERM_SQL, TERM_STRING, TERM_SQR}, 3};
 static rule_t r9 = {TERM_GRP, {TERM_STRING, TERM_NULL, TERM_NULL}, 1};
 
-//static rule_t r10 = {TERM_REGEX, {TERM_EXPR, TERM_NULL, TERM_NULL}, 1};
+static rule_t r10 = {TERM_REGEX, {TERM_EXPR, TERM_ORR, TERM_NULL}, 2};
 
 static rule_t rules[9];
 
@@ -208,6 +208,9 @@ void make_parse_table(){
     SET_PARSE_ENTRY_TERMINAL( STRING_T, 0, 7)
     SET_PARSE_ENTRY_TERMINAL( SQL, 0, 11)
     SET_PARSE_ENTRY_TERMINAL( CCL, 0, 10)
+
+    SET_PARSE_ENTRY_TERMINAL( CCR, 1, 10)
+    SET_PARSE_ENTRY_TERMINAL( NULL_TYPE, 1, 10)
 
     SET_PARSE_ENTRY_NON_TERMINAL( REGEX, 0, 2)
     SET_PARSE_ENTRY_NON_TERMINAL( EXPR, 0, 5)
@@ -288,7 +291,7 @@ void make_parse_table(){
     rules[7] = r7;
     rules[8] = r8;
     rules[9] = r9;
-    //rules[10] = r10;
+    rules[10] = r10;
 
     pparse_table();
 }
@@ -576,6 +579,17 @@ void push_regexes(parse_tree_node_t *ast_S, parse_tree_node_t *parse_tree_Regex)
     newone->self_type.start_index = newone->childs.front()->self_type.start_index; // leftmost start indx
     newone->self_type.stop_index = newone->childs.back()->self_type.stop_index; // rightmost end indx
 
+    // ORRED with nothing
+    if(parse_tree_Regex->childs.size() == 2){
+        newone->self_type.stop_index -= 1; // Take out the <|> character
+        newone = new parse_tree_node_t(parse_tree_Regex->self_type);
+        
+        newone->self_type.stop_index = -1;
+        newone->self_type.start_index = -1; // Represents empty regex
+        newone->parent = ast_S;
+        ast_S->childs.push_back(newone);
+    }
+
 }
 
     
@@ -844,8 +858,9 @@ nfa_t *orr_nwks(nfa_t * network_a, nfa_t * network_b){
 nfa_t *blank_nfa(){
     nfa_t * ans = new nfa_t();
     nfa_node_t *node = new nfa_node_t();
-    node->isfinish = false;
+    node->isfinish = true;
     ans->head = node;
+    ans->ends.push_back(node);
     return ans;
 }
 
@@ -856,7 +871,13 @@ nfa_t *make_nfa(parse_tree_node_t *ast, char *src){
         passert(ast->childs.size() >= 1, "Expected AST start to have children\n");
         ans = make_nfa(ast->childs[0], src);
         for(unsigned int i = 1; i < ast->childs.size(); i+= 1){
-            ans = orr_nwks(ans, make_nfa(ast->childs[i], src));
+            if(ast->childs[i]->self_type.start_index == -1 && ast->childs[i]->self_type.stop_index == -1){
+                // Case for: regex is empty
+                passert(ast->childs[i]->childs.size() == 0, "Expected empty regext to have no children\n");
+                ans = orr_nwks(ans, blank_nfa());
+            } else{
+                ans = orr_nwks(ans, make_nfa(ast->childs[i], src));
+            }
         }
         return ans;
     } else if(ast->self_type.type == TERM_REGEX){ // Entries are concated
@@ -1077,13 +1098,17 @@ bool traverse_dfa(dfa_t *dfa, char *input){
 
 
 int make_regex(char *str, regex_t *dest){
+    // 1) Tokenize
     generic_token_t * tokens = tokenize(str, strlen(str));
     if(tokens == NULL){return -1;}
     make_parse_table();
+
+    // 2) Make parse tree and AST
     parse_tree_node_t * ast = traverse_graph(tokens);
     if(ast == NULL){
         return -1;
     }
+    // 3) Make the NFA
     nfa_t *nfa = make_nfa(ast, str);
     if(nfa == NULL){return -1;}
     dfa_t *dfa = nfa_to_dfa_conv(nfa);

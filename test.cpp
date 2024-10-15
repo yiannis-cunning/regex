@@ -43,7 +43,7 @@ int main(int argv, char **argc){
     tester.test("this*", false);
     tester.test("thisthisthat", true);
 
-    str_regex = "hithere(like)?";
+    str_regex = "hithere(like|)";
     tester.update_regex(str_regex);
     tester.test("nothis", false);
     tester.test("withs", false);

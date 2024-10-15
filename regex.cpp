@@ -95,6 +95,8 @@ state_stack; stack; input buffer; action;
 #include "parse_table_def.h"
 
 //#define PRINT_DEBUG
+
+
 static void passert(bool cond, const char *msg){
     if(!cond){printf("%s", msg); exit(1);}
 }
@@ -127,7 +129,8 @@ void pparse_table(){
 
 
 // Want to make the parse tree by traversing the graph
-#define ALPHA(x) ((x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z') || (x >= '0' && x <= '9') || x == '-')
+#define ALPHA(x) (x != 0 && x != '?' && x != '*' && x != ')' && x != '(' && x != '[' && x != ']' && x != '|' && x != '+')
+//((x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z') || (x >= '0' && x <= '9') || x == '-')
 
 generic_token_t *tokenize(char *inpbuffer, uint32_t length){
     generic_token_t *tokens = (generic_token_t *)malloc(sizeof(generic_token_t)*(length + 1));
@@ -190,113 +193,17 @@ entry_t get_pt_entry(uint32_t state, enum all_terms term){
 
 
 
-typedef struct token_stack_t{
-    generic_token_t *base_p;
-    generic_token_t *next_p;
-    int n_tokens;
-    int alloc_size;
 
-} token_stack_t;
-
-token_stack_t init_token_stack(){
-    token_stack_t ans;
-    ans.base_p = (generic_token_t *)calloc(sizeof(generic_token_t), 16);
-    ans.alloc_size = 16;
-    ans.n_tokens = 0;
-    ans.next_p = ans.base_p;
-    return ans;
-}
-
-token_stack_t push_token_stack(token_stack_t stack, generic_token_t newone){
-    if(stack.alloc_size < stack.n_tokens + 1){
-        stack.alloc_size = stack.alloc_size*2;
-        stack.base_p = (generic_token_t *)realloc(stack.base_p, sizeof(generic_token_t)*stack.alloc_size);
-    }
-    stack.n_tokens += 1;
-    *(stack.next_p) = newone;
-    stack.next_p += 1;
-    return stack;
-}
-
-token_stack_t pop_token_stack(token_stack_t stack){
-    if(stack.n_tokens <= 0){
-        printf("POPING FROM A EMPTY STACK!\n");
-        exit(1);
-    }
-    stack.n_tokens -= 1;
-    stack.next_p = stack.next_p - 1;
-    return stack;
-}
-
-generic_token_t top_token(token_stack_t stack){
-    if(stack.n_tokens == 0){
-        printf("Bad top token access!\n");
-        exit(1);
-    }
-    return *(stack.next_p - 1);
-}
-
-
-
-
-
-
-
-typedef struct state_stack_t{
-    uint32_t *base_p;
-    uint32_t *top_p;
-    int n_elems;
-    int alloc_size;
-} state_stack_t;
-
-state_stack_t init_state_stack(){
-    state_stack_t ans;
-    ans.base_p = (uint32_t *)calloc(sizeof(uint32_t), 16);
-    ans.alloc_size = 16;
-    ans.n_elems = 0;
-    ans.top_p = ans.base_p;
-    return ans;
-}
-
-state_stack_t push_state_stack(state_stack_t stack, uint32_t value){
-    if(stack.alloc_size < stack.n_elems + 1){
-        stack.alloc_size = stack.alloc_size*2;
-        stack.base_p = (uint32_t *)realloc(stack.base_p, sizeof(uint32_t)*stack.alloc_size);
-    }
-    stack.n_elems += 1;
-    *(stack.top_p) = value;
-    stack.top_p += 1;
-    return stack;
-}
-state_stack_t pop_state_stack(state_stack_t stack){
-    if(stack.n_elems <= 0){
-        printf("POPING FROM A EMPTY STACK!\n");
-        exit(1);
-    }
-    stack.n_elems -= 1;
-    stack.top_p = stack.top_p - 1;
-    return stack;
-}
-
-uint32_t top_state(state_stack_t stack){
-    if(stack.top_p == stack.base_p){
-        printf("Bad state access\n");
-        exit(1);
-    }
-    return *(stack.top_p - 1);
-}
-
-
-void pstacks(state_stack_t state_stack, token_stack_t token_stack, std::vector<parse_tree_node_t *> parse_tree_stack){
+void pstacks(std::vector<uint32_t> state_stack, std::vector<parse_tree_node_t *> parse_tree_stack){
     
-    if(state_stack.n_elems != token_stack.n_tokens || state_stack.n_elems != (int) parse_tree_stack.size()){
+    if(state_stack.size() != parse_tree_stack.size()){
         printf("Mismatch in stack sizes!\n");
         exit(1);
     }
-    printf("State stack, Token stack\n");
-    for(int i =0; i < state_stack.n_elems; i += 1){
-        printf("|  %5d |", *(state_stack.top_p - 1 - i) );
-        printf("|  %5d |", (token_stack.next_p - i - 1)->type);
+    printf("State stack, Parse tree stack\n");
+    for(unsigned int i =0; i < state_stack.size(); i += 1){
+        //printf("|  %5d |", *(state_stack.top_p - 1 - i) );
+        printf("|  %5d |", state_stack[state_stack.size() - 1 - i] );
         printf("|  %5d (%d-%d) |", (parse_tree_stack[parse_tree_stack.size() - 1 - i])->self_type.type, (parse_tree_stack[parse_tree_stack.size() - 1 - i])->self_type.start_index, \
         (parse_tree_stack[parse_tree_stack.size() - 1 - i])->self_type.stop_index);
         printf("\n");
@@ -424,30 +331,27 @@ parse_tree_node_t * traverse_parse_tree(std::vector<parse_tree_node_t *> parse_t
 };
 
 
-void  reduce_stacks(token_stack_t *token_stackp, state_stack_t *state_stackp, int rule, std::vector<parse_tree_node_t *> *parse_tree_stackp){
+void  reduce_stacks(std::vector<uint32_t> *state_stack, int rule, std::vector<parse_tree_node_t *> *parse_tree_stackp){
 
-    token_stack_t token_stack = *token_stackp;
-    state_stack_t state_stack = *state_stackp;
     std::vector<parse_tree_node_t *> parse_tree_stack = *parse_tree_stackp;
 
     rule_t desired_rule = rules[rule];
 
-    if(token_stack.n_tokens < desired_rule.n_srcs){
+    if((int) parse_tree_stack.size() < desired_rule.n_srcs){
         printf("Could not reduce rule do to not enought arguments\n");
         exit(1);
     }
     for(int i = 0; i < desired_rule.n_srcs; i += 1){
-        if( desired_rule.src[i] != (*(token_stack.next_p - desired_rule.n_srcs + i)).type ){
+        if( desired_rule.src[i] != parse_tree_stack[parse_tree_stack.size() - desired_rule.n_srcs + i]->self_type.type){
             printf("Could not reduce rule due to bad stack %d for rule %d\n", i, rule);
             printf("Desired item = %d\n", desired_rule.src[i]);
-            printf("Actual item item = %d\n", (*(token_stack.next_p - desired_rule.n_srcs + i)).type);
-            exit(1);
+            printf("Actual item item = %d\n", parse_tree_stack[parse_tree_stack.size() - desired_rule.n_srcs - i]->self_type.type);
+            exit(1); 
         }
     }
 
     for(int i =0; i < desired_rule.n_srcs; i += 1){
-        token_stack = pop_token_stack(token_stack);
-        state_stack = pop_state_stack(state_stack);
+        state_stack->pop_back();
     }
     generic_token_t newone = {TERM_NULL, 0, 0, 0};
     newone.type = desired_rule.dest;
@@ -470,27 +374,22 @@ void  reduce_stacks(token_stack_t *token_stackp, state_stack_t *state_stackp, in
     }
 
     parse_tree_stack.push_back(new_node);
-    token_stack = push_token_stack(token_stack, newone);
 
-
-    *token_stackp = token_stack;
-    *state_stackp = state_stack;
     *parse_tree_stackp = parse_tree_stack;
 
 }
 
 
-
+// Should consider chaning vectors to lists
 parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
-    token_stack_t token_stack = init_token_stack();
-    state_stack_t state_stack = init_state_stack();
 
+    std::vector<uint32_t> state_stack;
     std::vector<parse_tree_node_t *> parse_tree_stack;
+
     parse_tree_node_t *newelem = new parse_tree_node_t((generic_token_t){TERM_NULL, 0, 0, 0});
     parse_tree_stack.push_back(newelem);
 
-    state_stack = push_state_stack(state_stack, 0);
-    token_stack = push_token_stack(token_stack, (generic_token_t){TERM_NULL, 0, 0, 0});
+    state_stack.push_back(0);
 
     int i = 0;
     generic_token_t next_input;
@@ -501,28 +400,35 @@ parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
 
         #ifdef PRINT_DEBUG
         printf("Input token = %d (str : %d-%d)\n", next_input.type, next_input.start_index, next_input.stop_index);
-        pstacks(state_stack, token_stack, parse_tree_stack);
+        pstacks(state_stack, parse_tree_stack);
         #endif
-        action = get_pt_entry(top_state(state_stack), next_input.type);
-
+        action = get_pt_entry(state_stack.back(), next_input.type);
 
 
         if(!action.isvalid){
             printf("Could not traverse the graph for this regex!\n");
-            exit(1);
+            return NULL;
         } else if(action.isReduce){
+
             #ifdef PRINT_DEBUG
             printf("Reducing by rule %d!\n", action.dest);
             #endif
-            reduce_stacks(&token_stack, &state_stack, action.dest, &parse_tree_stack);
+
+            reduce_stacks(&state_stack, action.dest, &parse_tree_stack);
             // Finish conditon
-            if(top_token(token_stack).type == TERM_START && input_stream[i].type == TERM_EOF){
+            if(parse_tree_stack.back()->self_type.type == TERM_START && input_stream[i].type == TERM_EOF){
                 //printf("Done! token_stack top = %d, == %d", top_token(token_stack).type, TERM_START);
                 break;
             }
-            uint32_t newstate = get_pt_entry(top_state(state_stack), top_token(token_stack).type).dest;
+            uint32_t newstate = get_pt_entry(state_stack.back(), parse_tree_stack.back()->self_type.type).dest;
+            if(!action.isvalid){
+                #ifdef PRINT_DEBUG
+                printf("No where to jump to with this reduce!\n");
+                #endif
+                return NULL;
+            }
+            state_stack.push_back(newstate);
 
-            state_stack = push_state_stack(state_stack, newstate);
             #ifdef PRINT_DEBUG
             printf("    Going to state %d\n", newstate);
             #endif
@@ -531,23 +437,25 @@ parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
             #ifdef PRINT_DEBUG
             printf("Shifting!\n");
             #endif
-            parse_tree_node_t *newnode = new parse_tree_node_t(next_input);
+
             // Shift
+            parse_tree_node_t *newnode = new parse_tree_node_t(next_input);
             parse_tree_stack.push_back(newnode);
-            token_stack = push_token_stack(token_stack, next_input);
-            state_stack = push_state_stack(state_stack, action.dest);
-            #ifdef PRINT_DEBUG
+            state_stack.push_back(action.dest);
+
+            #ifdef PRINT_DEBUG 
             printf("    Going to state %d\n", action.dest);
             #endif
+
             i += 1;
         }
     }
 
     #ifdef PRINT_DEBUG
     parse_tree_node_t *firstpre = parse_tree_stack.back()->childs.back()->childs.back();
-    printf("Printing 1st pre-or head: %d-%d, type = %d\n", firstpre->self_type.start_index, firstpre->self_type.stop_index, firstpre->self_type.type)
+    printf("Printing 1st pre-or head: %d-%d, type = %d\n", firstpre->self_type.start_index, firstpre->self_type.stop_index, firstpre->self_type.type);
     printf("Successfully traversed the graph!\n");
-    pstacks(state_stack, token_stack, parse_tree_stack);
+    //pstacks(state_stack, parse_tree_stack);
     #endif
     // Convert to AST
     parse_tree_node_t *ast = traverse_parse_tree(parse_tree_stack);
@@ -558,6 +466,22 @@ parse_tree_node_t * traverse_graph(generic_token_t *input_stream){
 
     return ast;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

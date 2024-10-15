@@ -22,7 +22,7 @@ public:
         testnum += 1;
     }
     void done(){
-        printf("Done all tests.... %d/%d passed\n", testnum - 1, passednum);
+        printf("Done all tests.... %d/%d passed\n", passednum, testnum - 1);
     }
 
     tester_t(){
@@ -74,7 +74,7 @@ int main(int argv, char **argc){
     tester.test("8", false);
     tester.test("a89", false);
     tester.test("that5this2", false);
-    
+
     tester.update_regex("(sing|bring)+athing(that|will+)slap?");
     tester.test("singathingthat", true);
     tester.test("singathingthatslap", true);
@@ -83,7 +83,12 @@ int main(int argv, char **argc){
     tester.test("bringathingwillwill", true);
     tester.test("singbringsingbringathingwillwillslap", true);
  
-
+    tester.update_regex("wack|splat|");
+    tester.test("wack", true);
+    tester.test("splat", true);
+    tester.test("", true);
+    tester.test("uhhh", false);
+    
     tester.done();
 
 }

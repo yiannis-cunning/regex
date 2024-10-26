@@ -12,7 +12,7 @@ project(
 
 sources = files(
   'regex.cpp',
-  'main.cpp',
+  'test.cpp',
 )
 
 executable('regex', sources)

@@ -87,7 +87,7 @@ LR0:
 state_stack; stack; input buffer; action; 
 */
 
-#include "regex.h"
+#include "miniregex.h"
 #include <stdbool.h>
 #include <iostream>
 #include <algorithm>
@@ -862,7 +862,7 @@ bool traverse_dfa(dfa_t *dfa, char *input){
 
 
 
-int make_regex(char *str, regex_t *dest){
+int make_regex(char *str, miniregex_t *dest){
     //pparse_table();
     // 1) Tokenize
     generic_token_t * tokens = tokenize(str, strlen(str));
@@ -884,18 +884,18 @@ int make_regex(char *str, regex_t *dest){
     dfa_t *dfa = nfa_to_dfa_conv(nfa);
     if(dfa == NULL){return -1;}
 
-    *dest = (regex_t) {dfa};
+    *dest = (miniregex_t) {dfa};
     
     return 0;
 }
 
-bool match(regex_t regex, char *matchstr){
+bool match_regex(miniregex_t regex, char *matchstr){
     return traverse_dfa(regex.dfa, matchstr);
 }
 
 
 /*
-regex_t::regex_t(char *str){
+miniregex_t::miniregex_t(char *str){
     generic_token_t * tokens = tokenize(str, strlen(str));
     if(tokens == NULL){
         return;

@@ -1,10 +1,10 @@
-#include "regex.h"
+#include "miniregex.h"
 #include <string.h>
 
 class tester_t{
     int testnum;
     int passednum;
-    regex_t curr_regex;
+    miniregex_t curr_regex;
 public:
 
     void update_regex(const char *regex_str){
@@ -13,7 +13,7 @@ public:
         if(ret_val == -1){printf("Bad regex when not expected!\n"); exit(1);}
     }
     void check_bad_regex(const char *regex_str){
-        regex_t temp;
+        miniregex_t temp;
         int ret_val = make_regex( (char *) regex_str, &temp);
         if(ret_val != -1){
             printf("Test %d FAILED - regex \"%s\" was expected to fail\n", testnum, regex_str);
@@ -25,7 +25,7 @@ public:
     }
 
     void test(const char *instr, bool expect_match){
-        if(match(curr_regex, (char *) instr) != expect_match){
+        if(match_regex(curr_regex, (char *) instr) != expect_match){
             printf("Test %d FAILED on input %s\n", testnum, instr);
         } else{
             printf("Test %d passed\n", testnum);
@@ -99,7 +99,7 @@ int main(int argv, char **argc){
     tester.test("wack", true);
     tester.test("splat", true);
     tester.test("", true);
-    tester.test("uhhh", false);
+    tester.test("space", false);
 
     tester.check_bad_regex("(|)");
     tester.check_bad_regex("(");
